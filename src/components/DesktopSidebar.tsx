@@ -114,7 +114,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
       {/* Navigation Menu */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">
           بخش‌های اصلی نرم‌افزار
         </div>
         {menuItems.map((item) => {
@@ -123,19 +123,21 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`relative w-full flex items-center justify-center px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <span className={isActive ? 'text-white' : 'text-slate-400'}>{item.icon}</span>
-                <span>{item.label}</span>
+              <div className="flex items-center gap-3 w-[184px]">
+                <span className={`shrink-0 flex items-center justify-center w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                  {item.icon}
+                </span>
+                <span className="text-right whitespace-nowrap">{item.label}</span>
               </div>
               {item.badge !== undefined && (
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                  className={`absolute left-3 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                     isActive 
                       ? 'bg-white/20 text-white' 
                       : item.id === 'pending'
