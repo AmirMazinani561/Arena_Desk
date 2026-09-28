@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --ios-blue: #0284c7;
+    --ios-blue-light: #e0f2fe;
+    --ios-blue-dark: #0369a1;
+  }
+
+  body {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    background-color: #f0f6fa;
+    color: #1e293b;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+
+    /* فعال‌سازی سراسری ارقام فارسی برای تمام اجزای نرم‌افزار */
+    font-feature-settings: "ss01" on;
+    -webkit-font-feature-settings: "ss01" on;
+  }
+
+  * {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-feature-settings: "ss01" on;
+    -webkit-font-feature-settings: "ss01" on;
+  }
+
+  /* استثنا برای نمایش ارقام انگلیسی در صورت نیاز (کدها، پسوردها یا کلاس لاتین) */
+  .latin-numbers,
+  input[type="password"] {
+    font-feature-settings: "ss01" off !important;
+    -webkit-font-feature-settings: "ss01" off !important;
+  }
+
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'Vazirmatn', ui-monospace, monospace !important;
+    font-feature-settings: "ss01" on, "ss02" on;
+  }
+
+  input, textarea, select {
+    user-select: text;
+    font-feature-settings: "ss01" on;
+    -webkit-font-feature-settings: "ss01" on;
+  }
+}
+
+/* Custom iOS style animations & scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.ios-glass {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ios-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(2, 132, 199, 0.07), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(224, 242, 254, 0.8);
+}
+
+.ios-card-pressable {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ios-card-pressable:active {
+  transform: scale(0.98);
+}
