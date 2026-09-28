@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "arena_desk",
-  "version": "0.1.0",
-  "identifier": "com.asus.arena-desk",
+  "productName": "ArenaDesk",
+  "version": "0.1.1",
+  "identifier": "com.arena.desk",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Arena Desk | حسابداری شخصی و دوبل",
-        "width": 980,
-        "height": 720,
+        "width": 1050,
+        "height": 740,
         "minWidth": 460,
         "minHeight": 600
       }
@@ -25,7 +25,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "windows": {
+      "nsis": {
+        "installMode": "both",
+        "displayLanguageSelector": false
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -6,7 +6,8 @@ import {
   ShieldCheck, 
   AlertTriangle, 
   CheckCircle,
-  Database
+  Database,
+  FolderOpen
 } from 'lucide-react';
 import { exportDatabaseBackup, importDatabaseBackup } from '../db/sqlite';
 import { getCurrentShamsi, toPersianDigits } from '../utils/dateUtils';
@@ -22,7 +23,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
 
   if (!isOpen) return null;
 
-  // ۱. عملیات پشتیبان‌گیری و دانلود فایل
+  // ۱. عملیات پشتیبان‌گیری و ذخیره فایل
   const handleBackup = async () => {
     try {
       setIsProcessing(true);
@@ -32,8 +33,20 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
       const blob = new Blob([backupBytes as any], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
       
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
       const todayShamsi = getCurrentShamsi().formatted.replace(/\//g, '_');
-      const filename = `Hesab_Backup_${todayShamsi}.db`;
+      const filename = `Hesab_Backup_${todayShamsi}_${timeStr}.db`;
+
+      let savedLocally = false;
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('save_local_backup', {
+          filename,
+          data: Array.from(new Uint8Array(backupBytes))
+        });
+        savedLocally = true;
+      } catch {}
 
       const a = document.createElement('a');
       a.href = url;
@@ -43,10 +56,17 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setMessage({
-        text: `فایل پشتیبان با موفقیت دانلود شد: ${filename}`,
-        type: 'success',
-      });
+      if (savedLocally) {
+        setMessage({
+          text: `فایل پشتیبان با موفقیت در پوشه ArenaBackup و بخش دانلودها ذخیره شد: ${filename}`,
+          type: 'success',
+        });
+      } else {
+        setMessage({
+          text: `فایل پشتیبان با موفقیت دانلود شد: ${filename}`,
+          type: 'success',
+        });
+      }
     } catch (err: any) {
       setMessage({
         text: err.message || 'خطا در تهیه نسخه پشتیبان',
@@ -54,6 +74,15 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_backup_folder');
+    } catch (e: any) {
+      alert('خطا در باز کردن پوشه: ' + (e?.message || e));
     }
   };
 
@@ -145,15 +174,27 @@ export const BackupModal: React.FC<BackupModalProps> = ({ isOpen, onClose }) => 
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleBackup}
-              disabled={isProcessing}
-              className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              <Download size={15} />
-              <span>{isProcessing ? 'در حال تهیه فایل...' : 'دانلود و ذخیره فایل پشتیبان (.db)'}</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={handleBackup}
+                disabled={isProcessing}
+                className="flex-1 flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <Download size={15} />
+                <span>{isProcessing ? 'در حال تهیه فایل...' : 'ذخیره نسخه پشتیبان (.db)'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenFolder}
+                className="px-3.5 flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer border border-slate-200"
+                title="مشاهده پوشه ArenaBackup"
+              >
+                <FolderOpen size={15} />
+                <span>پوشه بک‌آپ</span>
+              </button>
+            </div>
           </div>
 
           {/* کارت ۲: بازیابی اطلاعات */}

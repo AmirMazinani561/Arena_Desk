@@ -61,7 +61,16 @@ export const memoryStore = {
 export async function getDb(): Promise<Database | null> {
   if (dbInstance) return dbInstance;
   try {
-    dbInstance = await Database.load('sqlite:arena.db');
+    let dbConnStr = 'sqlite:arena.db';
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const paths: any = await invoke('get_app_paths');
+      if (paths && paths.db_path) {
+        dbConnStr = `sqlite:${paths.db_path}`;
+      }
+    } catch {}
+
+    dbInstance = await Database.load(dbConnStr);
     await initSchema(dbInstance, seedDefaultData);
     return dbInstance;
   } catch (err) {

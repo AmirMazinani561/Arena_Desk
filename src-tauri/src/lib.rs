@@ -90,12 +90,89 @@ async fn sync_wallet_online(
     Ok(res_str)
 }
 
+use std::path::PathBuf;
+
+#[derive(serde::Serialize)]
+pub struct AppPaths {
+    pub app_dir: String,
+    pub db_path: String,
+    pub backup_dir: String,
+}
+
+fn resolve_base_dir() -> PathBuf {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            let p_str = parent.to_string_lossy();
+            if p_str.ends_with("target\\debug") || p_str.ends_with("target/debug") || p_str.ends_with("target\\release") || p_str.ends_with("target/release") {
+                if let Ok(curr) = std::env::current_dir() {
+                    return curr;
+                }
+            }
+            return parent.to_path_buf();
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+#[tauri::command]
+fn get_app_paths() -> Result<AppPaths, String> {
+    let base_dir = resolve_base_dir();
+    let db_path = base_dir.join("arena.db");
+    let backup_dir = base_dir.join("ArenaBackup");
+
+    if !backup_dir.exists() {
+        let _ = std::fs::create_dir_all(&backup_dir);
+    }
+
+    Ok(AppPaths {
+        app_dir: base_dir.to_string_lossy().to_string(),
+        db_path: db_path.to_string_lossy().to_string().replace('\\', "/"),
+        backup_dir: backup_dir.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+fn save_local_backup(filename: String, data: Vec<u8>) -> Result<String, String> {
+    let base_dir = resolve_base_dir();
+    let backup_dir = base_dir.join("ArenaBackup");
+    if !backup_dir.exists() {
+        std::fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
+    }
+    let target = backup_dir.join(&filename);
+    std::fs::write(&target, data).map_err(|e| e.to_string())?;
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_backup_folder() -> Result<(), String> {
+    let base_dir = resolve_base_dir();
+    let backup_dir = base_dir.join("ArenaBackup");
+    if !backup_dir.exists() {
+        let _ = std::fs::create_dir_all(&backup_dir);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer.exe")
+            .arg(&backup_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![greet, sync_wallet_online])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            sync_wallet_online,
+            get_app_paths,
+            save_local_backup,
+            open_backup_folder
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
