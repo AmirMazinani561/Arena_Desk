@@ -123,20 +123,23 @@ export async function getPayrollMonthlyRecord(
   accumulatedPrevBalance: number;
 }> {
   const db = await getDb();
-  const prevYear = month === 1 ? year - 1 : year;
-  const prevMonth = month === 1 ? 12 : month - 1;
+  const numYear = Number(year);
+  const numMonth = Number(month);
+  const prevYear = numMonth === 1 ? numYear - 1 : numYear;
+  const prevMonth = numMonth === 1 ? 12 : numMonth - 1;
+  const empId = String(employeeId);
 
   if (db && !isWebFallback) {
     try {
       const curRows: any[] = await db.select(
         'SELECT * FROM payroll_records WHERE employee_id = $1 AND year = $2 AND month = $3 LIMIT 1',
-        [employeeId, year, month]
+        [empId, numYear, numMonth]
       );
       const currentRecord: PayrollRecord | null = curRows.length > 0 ? curRows[0] : null;
 
       const prevRows: any[] = await db.select(
         'SELECT * FROM payroll_records WHERE employee_id = $1 AND year = $2 AND month = $3 LIMIT 1',
-        [employeeId, prevYear, prevMonth]
+        [empId, prevYear, prevMonth]
       );
       const prevRecord: PayrollRecord | null = prevRows.length > 0 ? prevRows[0] : null;
 
@@ -157,7 +160,7 @@ export async function getPayrollMonthlyRecord(
          WHERE r.employee_id = $1
            AND (r.year < $2 OR (r.year = $2 AND r.month < $3))
          ORDER BY r.year ASC, r.month ASC`,
-        [employeeId, year, month]
+        [empId, numYear, numMonth]
       );
 
       let accumulatedPrevBalance = 0;
@@ -175,8 +178,8 @@ export async function getPayrollMonthlyRecord(
       return { currentRecord: null, prevRecord: null, prevPaymentsTotal: 0, accumulatedPrevBalance: 0 };
     }
   } else {
-    const cur = (memoryStore.payrollRecords || []).find(r => r.employee_id === employeeId && r.year === year && r.month === month) || null;
-    const prv = (memoryStore.payrollRecords || []).find(r => r.employee_id === employeeId && r.year === prevYear && r.month === prevMonth) || null;
+    const cur = (memoryStore.payrollRecords || []).find(r => String(r.employee_id) === empId && Number(r.year) === numYear && Number(r.month) === numMonth) || null;
+    const prv = (memoryStore.payrollRecords || []).find(r => String(r.employee_id) === empId && Number(r.year) === prevYear && Number(r.month) === prevMonth) || null;
     let prvPays = 0;
     if (prv) {
       prvPays = (memoryStore.payrollPayments || [])
@@ -185,8 +188,8 @@ export async function getPayrollMonthlyRecord(
     }
 
     const priorRecords = (memoryStore.payrollRecords || [])
-      .filter(r => r.employee_id === employeeId && (r.year < year || (r.year === year && r.month < month)))
-      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+      .filter(r => String(r.employee_id) === empId && (Number(r.year) < numYear || (Number(r.year) === numYear && Number(r.month) < numMonth)))
+      .sort((a, b) => Number(a.year) !== Number(b.year) ? Number(a.year) - Number(b.year) : Number(a.month) - Number(b.month));
 
     let accumulatedPrevBalance = 0;
     for (const r of priorRecords) {
@@ -203,6 +206,69 @@ export async function getPayrollMonthlyRecord(
   }
 }
 
+export async function getOrCreatePayrollMonthlyRecord(
+  employeeId: string,
+  year: number,
+  month: number
+): Promise<PayrollRecord> {
+  const db = await getDb();
+  const empId = String(employeeId);
+  const numYear = Number(year);
+  const numMonth = Number(month);
+
+  if (db && !isWebFallback) {
+    const existing: any[] = await db.select(
+      'SELECT * FROM payroll_records WHERE employee_id = $1 AND year = $2 AND month = $3 LIMIT 1',
+      [empId, numYear, numMonth]
+    );
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    const id = generateId();
+    const now = new Date().toISOString();
+    const record: PayrollRecord = {
+      id,
+      employee_id: empId,
+      year: numYear,
+      month: numMonth,
+      base_salary_rial: 0,
+      overtime_days: 0,
+      created_at: now
+    };
+    await db.execute(
+      `INSERT INTO payroll_records (id, employee_id, year, month, base_salary_rial, overtime_days, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [record.id, record.employee_id, record.year, record.month, record.base_salary_rial, record.overtime_days, record.created_at]
+    );
+    return record;
+  } else {
+    if (!memoryStore.payrollRecords) memoryStore.payrollRecords = [];
+    const existing = memoryStore.payrollRecords.find(
+      r => String(r.employee_id) === empId && Number(r.year) === numYear && Number(r.month) === numMonth
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const id = generateId();
+    const now = new Date().toISOString();
+    const record: PayrollRecord = {
+      id,
+      employee_id: empId,
+      year: numYear,
+      month: numMonth,
+      base_salary_rial: 0,
+      overtime_days: 0,
+      created_at: now
+    };
+    memoryStore.payrollRecords.push(record);
+    saveFallbackToStorage();
+    return record;
+  }
+}
+
 export async function savePayrollMonthlyRecord(data: {
   employee_id: string;
   year: number;
@@ -212,18 +278,23 @@ export async function savePayrollMonthlyRecord(data: {
 }): Promise<PayrollRecord> {
   const db = await getDb();
   const now = new Date().toISOString();
+  const empId = String(data.employee_id);
+  const numYear = Number(data.year);
+  const numMonth = Number(data.month);
+  const salary = Number(data.base_salary_rial) || 0;
+  const overtime = Number(data.overtime_days) || 0;
 
   if (db && !isWebFallback) {
     const existing: any[] = await db.select(
       'SELECT * FROM payroll_records WHERE employee_id = $1 AND year = $2 AND month = $3 LIMIT 1',
-      [data.employee_id, data.year, data.month]
+      [empId, numYear, numMonth]
     );
 
     if (existing.length > 0) {
       const record: PayrollRecord = {
         ...existing[0],
-        base_salary_rial: Number(data.base_salary_rial) || 0,
-        overtime_days: Number(data.overtime_days) || 0
+        base_salary_rial: salary,
+        overtime_days: overtime
       };
       await db.execute(
         `UPDATE payroll_records SET base_salary_rial = $1, overtime_days = $2 WHERE id = $3`,
@@ -234,11 +305,11 @@ export async function savePayrollMonthlyRecord(data: {
       const id = generateId();
       const record: PayrollRecord = {
         id,
-        employee_id: data.employee_id,
-        year: data.year,
-        month: data.month,
-        base_salary_rial: Number(data.base_salary_rial) || 0,
-        overtime_days: Number(data.overtime_days) || 0,
+        employee_id: empId,
+        year: numYear,
+        month: numMonth,
+        base_salary_rial: salary,
+        overtime_days: overtime,
         created_at: now
       };
       await db.execute(
@@ -250,12 +321,14 @@ export async function savePayrollMonthlyRecord(data: {
     }
   } else {
     if (!memoryStore.payrollRecords) memoryStore.payrollRecords = [];
-    const idx = memoryStore.payrollRecords.findIndex(r => r.employee_id === data.employee_id && r.year === data.year && r.month === data.month);
+    const idx = memoryStore.payrollRecords.findIndex(
+      r => String(r.employee_id) === empId && Number(r.year) === numYear && Number(r.month) === numMonth
+    );
     if (idx !== -1) {
       const record: PayrollRecord = {
         ...memoryStore.payrollRecords[idx],
-        base_salary_rial: Number(data.base_salary_rial) || 0,
-        overtime_days: Number(data.overtime_days) || 0
+        base_salary_rial: salary,
+        overtime_days: overtime
       };
       memoryStore.payrollRecords[idx] = record;
       saveFallbackToStorage();
@@ -264,11 +337,11 @@ export async function savePayrollMonthlyRecord(data: {
       const id = generateId();
       const record: PayrollRecord = {
         id,
-        employee_id: data.employee_id,
-        year: data.year,
-        month: data.month,
-        base_salary_rial: Number(data.base_salary_rial) || 0,
-        overtime_days: Number(data.overtime_days) || 0,
+        employee_id: empId,
+        year: numYear,
+        month: numMonth,
+        base_salary_rial: salary,
+        overtime_days: overtime,
         created_at: now
       };
       memoryStore.payrollRecords.push(record);

@@ -9,7 +9,7 @@ import {
   createEquityTransaction,
   getAllPayrollEmployees,
   getAllPayrollPayments,
-  savePayrollMonthlyRecord,
+  getOrCreatePayrollMonthlyRecord,
   createPayrollPayment
 } from '../db/sqlite';
 
@@ -467,13 +467,11 @@ export async function syncWalletTransactions(
         );
 
         if (!isDupPayroll) {
-          const record = await savePayrollMonthlyRecord({
-            employee_id: matchedEmp.id,
+          const record = await getOrCreatePayrollMonthlyRecord(
+            matchedEmp.id,
             year,
-            month,
-            base_salary_rial: 0,
-            overtime_days: 0,
-          });
+            month
+          );
 
           const newPay = await createPayrollPayment({
             record_id: record.id,

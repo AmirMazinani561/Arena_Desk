@@ -57,12 +57,35 @@ const roundUp50k = (val: number): number => {
 
 export const PayrollTab: React.FC = () => {
   const [employees, setEmployees] = useState<PayrollEmployee[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(() => {
+    return localStorage.getItem('arena_payroll_last_emp_id') || '';
+  });
 
   // سال و ماه فعال
   const nowShamsi = getCurrentShamsi();
-  const [year, setYear] = useState<number>(nowShamsi.jy);
-  const [month, setMonth] = useState<number>(nowShamsi.jm);
+  const [year, setYear] = useState<number>(() => {
+    const saved = localStorage.getItem('arena_payroll_last_year');
+    return saved ? Number(saved) : nowShamsi.jy;
+  });
+  const [month, setMonth] = useState<number>(() => {
+    const saved = localStorage.getItem('arena_payroll_last_month');
+    return saved ? Number(saved) : nowShamsi.jm;
+  });
+
+  // ذخیره در حافظه محلی مرورگر جهت عدم ریست هنگام باز و بسته شدن نرم‌افزار
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      localStorage.setItem('arena_payroll_last_emp_id', selectedEmployeeId);
+    }
+  }, [selectedEmployeeId]);
+
+  useEffect(() => {
+    localStorage.setItem('arena_payroll_last_year', String(year));
+  }, [year]);
+
+  useEffect(() => {
+    localStorage.setItem('arena_payroll_last_month', String(month));
+  }, [month]);
 
   // داده‌های پرونده ماهانه کارمند انتخابی
   const [currentRecord, setCurrentRecord] = useState<PayrollRecord | null>(null);
@@ -73,6 +96,7 @@ export const PayrollTab: React.FC = () => {
   const [baseSalaryInput, setBaseSalaryInput] = useState<string>('');
   const [overtimeDaysInput, setOvertimeDaysInput] = useState<string>('');
   const [isSavingRecord, setIsSavingRecord] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // ورودی ثبت پرداخت جدید
   const [newPayDate, setNewPayDate] = useState<string>('');
@@ -223,8 +247,13 @@ export const PayrollTab: React.FC = () => {
     try {
       const list = await getAllPayrollEmployees();
       setEmployees(list);
-      if (list.length > 0 && !selectedEmployeeId) {
-        setSelectedEmployeeId(list[0].id);
+      if (list.length > 0) {
+        const savedEmpId = localStorage.getItem('arena_payroll_last_emp_id');
+        if (savedEmpId && list.some(e => e.id === savedEmpId)) {
+          setSelectedEmployeeId(savedEmpId);
+        } else if (!selectedEmployeeId || !list.some(e => e.id === selectedEmployeeId)) {
+          setSelectedEmployeeId(list[0].id);
+        }
       }
     } catch (e) {
       console.error('Failed to load employees:', e);
@@ -303,12 +332,15 @@ export const PayrollTab: React.FC = () => {
       const rawOt = parseFloat(overtimeDaysInput.replace(/[^\d.]/g, '')) || 0;
       const saved = await savePayrollMonthlyRecord({
         employee_id: selectedEmployeeId,
-        year,
-        month,
+        year: Number(year),
+        month: Number(month),
         base_salary_rial: rawSalary,
         overtime_days: rawOt
       });
       setCurrentRecord(saved);
+      await loadMonthlyData();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
       // بروزرسانی تاریخ پیش‌فرض پرداخت جدید
       if (!newPayDate) {
         setNewPayDate(`${year}${String(month).padStart(2, '0')}15`);
@@ -719,10 +751,10 @@ export const PayrollTab: React.FC = () => {
                 <button
                   onClick={handleSaveRecord}
                   disabled={isSavingRecord}
-                  className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className={`w-full h-10 ${saveSuccess ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer`}
                 >
                   <Check className="w-4 h-4" />
-                  <span>{isSavingRecord ? 'در حال ذخیره...' : 'ذخیره کارکرد ماه'}</span>
+                  <span>{isSavingRecord ? 'در حال ذخیره...' : saveSuccess ? 'ذخیره شد ✓' : 'ذخیره کارکرد ماه'}</span>
                 </button>
               </div>
             </div>

@@ -1281,7 +1281,7 @@ const EquityReportModal: React.FC<ReportModalProps> = ({
       <html dir="rtl" lang="fa">
         <head>
           <meta charset="utf-8" />
-          <title>گزارش وضعیت حساب سرمایه‌گذار - ${partner.name}</title>
+          <title>${partner.name}</title>
           ${styles}
           <style>
             @page {

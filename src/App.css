@@ -84,3 +84,16 @@
 .ios-card-pressable:active {
   transform: scale(0.98);
 }
+
+@media print {
+  @page {
+    margin: 8mm;
+    size: auto;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+}

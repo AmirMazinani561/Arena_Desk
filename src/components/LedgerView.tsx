@@ -352,7 +352,15 @@ export const LedgerView: React.FC<LedgerViewProps> = ({
               </div>
 
               <button
-                onClick={() => window.print()}
+                onClick={() => {
+                  const originalTitle = document.title;
+                  const partyName = account?.name || 'صورت‌حساب';
+                  document.title = partyName;
+                  window.print();
+                  setTimeout(() => {
+                    document.title = originalTitle;
+                  }, 1000);
+                }}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl transition-all cursor-pointer shadow-2xs"
                 title="چاپ اختصاصی صورت‌حساب"
               >
